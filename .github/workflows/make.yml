@@ -22,41 +22,46 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git p7zip-full
-
+      
       - name: Generate patch and compress
         run: |
           set -e
-
+      
           OWNER="Wumpus-Central"
           REPO="discrapper-canary"
           SHA="${{ github.event.inputs.sha }}"
-
+      
           URL="https://github.com/${OWNER}/${REPO}.git"
           TMP_DIR=$(mktemp -d)
-
-          echo "Cloning repo: $OWNER/$REPO"
-          echo "Commit: $SHA"
-
-          git init --initial-branch=main --quiet "$TMP_DIR"
+      
+          echo "Target commit: $SHA"
+      
+          git init "$TMP_DIR"
           cd "$TMP_DIR"
-
+      
           git remote add origin "$URL"
-          git fetch --depth 1 origin "$SHA"
-
+      
+          # pull ONLY last 4 commits (lightweight)
+          git fetch --depth 4 origin main
+      
+          # make sure SHA exists in fetched history
+          git cat-file -e "$SHA^{commit}" || {
+            echo "Commit not in last 4 commits, fetching it directly..."
+            git fetch --depth 1 origin "$SHA"
+          }
+      
+          # checkout exact commit
+          git checkout --detach "$SHA"
+      
           echo "Generating patch..."
-
-          if git format-patch -1 --stdout FETCH_HEAD > patch.patch 2>/dev/null; then
-            echo "Patch generated normally"
-          else
-            echo "Fallback: root commit patch"
-            git format-patch -1 --stdout --root FETCH_HEAD > patch.patch
-          fi
-
-          FILE_NAME="commit_patch.7z"
-
-          7z a "$FILE_NAME" patch.patch
-
-          mv "$FILE_NAME" "$GITHUB_WORKSPACE/"
+      
+          git format-patch -1 HEAD --stdout > patch.patch
+      
+          echo "Compressing..."
+      
+          7z a commit_patch.7z patch.patch
+      
+          mv commit_patch.7z "$GITHUB_WORKSPACE/"
 
       - name: Create GitHub Release + upload asset
         uses: softprops/action-gh-release@v2
