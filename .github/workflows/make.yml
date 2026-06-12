@@ -52,7 +52,7 @@ jobs:
             git format-patch -1 --stdout --root FETCH_HEAD > patch.patch
           fi
 
-          FILE_NAME="${OWNER}-${REPO}-${SHA}.7z"
+          FILE_NAME="commit_patch.7z"
 
           7z a "$FILE_NAME" patch.patch
 
