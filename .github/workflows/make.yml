@@ -15,52 +15,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git p7zip-full
-      
-      - name: Generate patch and compress
+
+      - name: Generate GitHub-identical patch
         run: |
           set -e
-      
+
           OWNER="Wumpus-Central"
           REPO="discrapper-canary"
           SHA="${{ github.event.inputs.sha }}"
-      
           URL="https://github.com/${OWNER}/${REPO}.git"
+
           TMP_DIR=$(mktemp -d)
-      
-          echo "Target commit: $SHA"
-      
-          git init "$TMP_DIR"
           cd "$TMP_DIR"
-      
+
+          echo "Cloning minimal repo..."
+
+          git init
           git remote add origin "$URL"
-      
-          # pull ONLY last 4 commits (lightweight)
-          git fetch --depth 4 origin main
-      
-          # make sure SHA exists in fetched history
-          git cat-file -e "$SHA^{commit}" || {
-            echo "Commit not in last 4 commits, fetching it directly..."
-            git fetch --depth 1 origin "$SHA"
-          }
-      
-          # checkout exact commit
+
+          git fetch --depth=20 origin "$SHA"
+
+          echo "Checking out commit..."
           git checkout --detach "$SHA"
-      
-          echo "Generating patch..."
-      
-          git format-patch -1 HEAD --stdout > patch.patch
-      
+
+          echo "Verifying commit exists..."
+          git cat-file -e "$SHA^{commit}"
+
+          echo "Generating GitHub-equivalent patch..."
+
+          # THIS is what GitHub /commit/SHA.patch effectively equals
+          git show "$SHA" --pretty=email --patch > patch.patch
+
           echo "Compressing..."
-      
           7z a commit_patch.7z patch.patch
-      
+
           mv commit_patch.7z "$GITHUB_WORKSPACE/"
 
       - name: Create GitHub Release + upload asset
