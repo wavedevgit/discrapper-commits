@@ -1,4 +1,4 @@
-name: Commit Patch to 7z
+name: Commit Patch to gz
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git p7zip-full
+          sudo apt-get install -y git gzip
 
       - name: Generate GitHub-identical patch
         run: |
@@ -47,13 +47,12 @@ jobs:
 
           echo "Generating GitHub-equivalent patch..."
 
-          # THIS is what GitHub /commit/SHA.patch effectively equals
           git show "$SHA" --pretty=email --patch > patch.patch
 
-          echo "Compressing..."
-          7z a commit_patch.7z patch.patch
+          echo "Compressing with gzip (max level)..."
+          gzip --best patch.patch
 
-          mv commit_patch.7z "$GITHUB_WORKSPACE/"
+          mv patch.patch.gz "$GITHUB_WORKSPACE/"
 
       - name: Create GitHub Release + upload asset
         uses: softprops/action-gh-release@v2
@@ -61,6 +60,6 @@ jobs:
           tag_name: commit-${{ github.event.inputs.sha }}
           name: "Commit ${{ github.event.inputs.sha }}"
           files: |
-            *.7z
+            *.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
