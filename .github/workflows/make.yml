@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git gzip
 
-      - name: Generate GitHub-identical patch
+      - name: Generate GitHub-style patch
         run: |
           set -e
 
@@ -32,25 +32,22 @@ jobs:
           TMP_DIR=$(mktemp -d)
           cd "$TMP_DIR"
 
-          echo "Cloning minimal repo..."
-
+          echo "Cloning repo..."
           git init
           git remote add origin "$URL"
 
-          git fetch --depth=20 origin "$SHA"
-
-          echo "Checking out commit..."
+          git fetch --depth=50 origin "$SHA"
           git checkout --detach "$SHA"
 
-          echo "Verifying commit exists..."
+          echo "Validating commit..."
           git cat-file -e "$SHA^{commit}"
 
-          echo "Generating GitHub-equivalent patch..."
+          echo "Generating format-patch (GitHub style)..."
 
-          git show "$SHA" --pretty=email --patch > patch.patch
+          git format-patch -1 "$SHA" --stdout > patch.patch
 
-          echo "Compressing with gzip (max level)..."
-          gzip --best patch.patch
+          echo "Compressing with max gzip..."
+          gzip -9 patch.patch
 
           mv patch.patch.gz "$GITHUB_WORKSPACE/"
 
