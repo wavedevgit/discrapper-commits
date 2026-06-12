@@ -7,8 +7,8 @@ on:
         description: "Commit SHA"
         required: true
 
-permissions: 
- contents: write
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -58,15 +58,12 @@ jobs:
 
           mv "$FILE_NAME" "$GITHUB_WORKSPACE/"
 
-      - name: Commit 7z back to repo
-        run: |
-          set -e
-
-          FILE=$(ls *.7z | head -n 1)
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add "$FILE"
-          git commit -m "Add patch archive for ${SHA}" || echo "Nothing to commit"
-          git push
+      - name: Create GitHub Release + upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.sha }}
+          name: "Commit ${{ github.event.inputs.sha }}"
+          files: |
+            *.7z
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
