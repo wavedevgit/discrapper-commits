@@ -61,7 +61,7 @@ jobs:
       - name: Create GitHub Release + upload asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.sha }}
+          tag_name: commit-${{ github.event.inputs.sha }}
           name: "Commit ${{ github.event.inputs.sha }}"
           files: |
             *.7z
