@@ -1,0 +1,69 @@
+name: Commit Patch to 7z
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA"
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git p7zip-full
+
+      - name: Generate patch and compress
+        run: |
+          set -e
+
+          OWNER="Wumpus-Central"
+          REPO="discrapper-canary"
+          SHA="${{ github.event.inputs.sha }}"
+
+          URL="https://github.com/${OWNER}/${REPO}.git"
+          TMP_DIR=$(mktemp -d)
+
+          echo "Cloning repo: $OWNER/$REPO"
+          echo "Commit: $SHA"
+
+          git init --initial-branch=main --quiet "$TMP_DIR"
+          cd "$TMP_DIR"
+
+          git remote add origin "$URL"
+          git fetch --depth 1 origin "$SHA"
+
+          echo "Generating patch..."
+
+          if git format-patch -1 --stdout FETCH_HEAD > patch.patch 2>/dev/null; then
+            echo "Patch generated normally"
+          else
+            echo "Fallback: root commit patch"
+            git format-patch -1 --stdout --root FETCH_HEAD > patch.patch
+          fi
+
+          FILE_NAME="${OWNER}-${REPO}-${SHA}.7z"
+
+          7z a "$FILE_NAME" patch.patch
+
+          mv "$FILE_NAME" "$GITHUB_WORKSPACE/"
+
+      - name: Commit 7z back to repo
+        run: |
+          set -e
+
+          FILE=$(ls *.7z | head -n 1)
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "$FILE"
+          git commit -m "Add patch archive for ${SHA}" || echo "Nothing to commit"
+          git push
